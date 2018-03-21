@@ -1,0 +1,170 @@
+
+
+$('form.form-crono').bind('submit', function(event) {
+			
+	event.preventDefault();
+	/* Act on the event */
+	var var_placanum=$('input[name="placanumero"]').val();
+	var var_tipo=$('select[name="tipodecarro"]').val();
+	var var_ano=$('select[name="anofab"]').val();
+	var val_placa=$cronograma.valexptotal(var_placanum);
+
+	if (var_placanum!='' && var_tipo!='' && var_ano!='' && val_placa) {
+		$.ajax({
+			url: base_url.value+'c_cronograma/calcular',
+			type: 'POST',
+			dataType: 'json',
+			data: {placanumero:var_placanum, tipodecarro:var_tipo, anofab:var_ano},
+		})
+		.done(function(data) {
+			console.log("success");
+			var res=data;
+			html=res[0]+' del '+res[1];
+			html_comp=$cronograma.getTimeTense(res[0], res[1])+' <span id="resultado-mes">'+res[0]+' del '+res[1]+'</span>';
+			$("#tit-res").html('RESULTADO:');
+			$("#msj-res").html(html_comp);
+		})
+		.fail(function() {
+			console.log("error");
+		})
+		.always(function() {
+			console.log("complete");
+		});
+	}else if(!val_placa){
+		$("#msj-res").html('La placa que ha ingresado es incorrecta. Ingrese una nueva placa.');
+		$('.placaimg svg text #platenumber').html(var_placanum);
+	}
+});
+
+
+$('input[name="placanumero"]').on('keyup', function(event){
+	$("#msj-res").html('');
+	$("#tit-res").html('');
+	var num_plate = $('input[name="placanumero"]').val();
+	var is_backspace=$cronograma.is_backspace(num_plate);
+	var last_char=$cronograma.findlastchar(num_plate);
+	var plate_length=num_plate.length;
+	$('#placa-hidden').val(num_plate);
+
+	if (!is_backspace) {
+		valid_plate=false;
+		valid_plate=$cronograma.valexp(num_plate);
+		if (valid_plate) {
+			//modify svg
+			$('.placaimg svg text #platenumber').html(num_plate);
+			if (plate_length==2 || plate_length==3 || plate_length==4) {
+				if (plate_length==2 && $cronograma.version=='old') {
+					//the folowing code was commented so that a '-' is not added after the user enters FH, since there is also a new possible format --> FHA
+					//num_plate=num_plate+'-';
+					//$('input[name="placanumero"]').val(num_plate);
+					//$('.placaimg svg text #platenumber').html(num_plate);
+					//$('#placa-hidden').val(num_plate);
+				}else if (plate_length==3 && $cronograma.version=='new') {
+					num_plate=num_plate+'-';
+					$('input[name="placanumero"]').val(num_plate);
+					$('.placaimg svg text #platenumber').html(num_plate);
+					$('#placa-hidden').val(num_plate);
+				}else if (plate_length==3 && $cronograma.version=='old' && last_char!='-'){
+					num_plate=num_plate.substring(0,num_plate.length-1)+'-'+last_char;
+					$('input[name="placanumero"]').val(num_plate);
+					$('.placaimg svg text #platenumber').html(num_plate);
+					$('#placa-hidden').val(num_plate);
+				}else if (plate_length==4 && $cronograma.version=='new' && last_char!='-'){
+					num_plate=num_plate.substring(0,num_plate.length-1)+'-'+last_char;
+					$('input[name="placanumero"]').val(num_plate);
+					$('.placaimg svg text #platenumber').html(num_plate);
+					$('#placa-hidden').val(num_plate);
+				}else if (plate_length==3 && $cronograma.version=='old-1') {
+					//following code is to deal with plates with format RGH-345
+					num_plate=num_plate+'-';
+					$('input[name="placanumero"]').val(num_plate);
+					$('.placaimg svg text #platenumber').html(num_plate);
+					$('#placa-hidden').val(num_plate);
+				}else if(plate_length==4 && $cronograma.version=='old-1' && last_char!='-'){
+					num_plate=num_plate.substring(0,num_plate.length-1)+'-'+last_char;
+					$('input[name="placanumero"]').val(num_plate);
+					$('.placaimg svg text #platenumber').html(num_plate);
+					$('#placa-hidden').val(num_plate);
+				}
+			}
+		}
+	}
+});
+
+
+valexp: function(plate){
+	mylength=plate.length;
+	is_valid=false;
+	switch(mylength){
+		case 0:
+			is_valid=true;
+			break;
+
+		case 1:
+			if($cronograma.es_letra(plate)){
+				is_valid=true;
+			}
+			break;
+
+		case 2:
+			if (/[a-zA-Z][0-9]/.test(plate) || /[a-zA-Z][a-zA-Z]/.test(plate)) {
+				is_valid=true;
+				if (/[a-zA-Z][a-zA-Z]/.test(plate)) {
+					$cronograma.version='old';
+				}else{
+					$cronograma.version='new';
+				}
+			}
+			break;
+		case 3:
+			if (/[a-zA-Z][0-9][a-zA-Z]/.test(plate) || /[a-zA-Z][a-zA-Z][0-9\-]/.test(plate) || /[a-zA-Z][a-zA-Z][a-zA-Z]/.test(plate)) {
+				is_valid=true;
+				if (/[a-zA-Z][0-9][a-zA-Z]/.test(plate)) {
+					$cronograma.version='new';
+				}else if (/[a-zA-Z][a-zA-Z][a-zA-Z]/.test(plate)) {
+					$cronograma.version='old-1';
+				}else{
+					$cronograma.version='old';
+				}
+			}
+			break;
+		case 4:
+			if (/[a-zA-Z][0-9][a-zA-Z][0-9\-]/.test(plate) || /[a-zA-Z][a-zA-Z][0-9\-][0-9]/.test(plate) || /[a-zA-Z][a-zA-Z][a-zA-Z][0-9\-]/.test(plate)) {
+				is_valid=true;
+				//the following code was added to deal with plates with format RGB-234
+				if (/[a-zA-Z][0-9][a-zA-Z][0-9\-]/.test(plate)) {
+					$cronograma.version='new';
+				}else if (/[a-zA-Z][a-zA-Z][a-zA-Z][0-9\-]/.test(plate)) {
+					$cronograma.version='old-1';
+				}else{
+					$cronograma.version='old';
+				}
+			}
+			break;
+		case 5:
+			if (/[a-zA-Z][0-9][a-zA-Z][0-9\-][0-9]/.test(plate) || /[a-zA-Z][a-zA-Z][0-9\-][0-9][0-9]/.test(plate) || /[a-zA-Z][a-zA-Z][a-zA-Z][0-9\-][0-9]/.test(plate)) {
+				is_valid=true;
+			}
+			break;
+		case 6:
+			if (/[a-zA-Z][0-9][a-zA-Z][0-9\-][0-9][0-9]/.test(plate) || /[a-zA-Z][a-zA-Z][0-9\-][0-9][0-9][0-9]/.test(plate) || /[a-zA-Z][a-zA-Z][a-zA-Z][0-9\-][0-9][0-9]/.test(plate)) {
+				is_valid=true;
+			}
+			break;
+		case 7:
+			if (/[a-zA-Z][0-9][a-zA-Z]\-[0-9][0-9][0-9]/.test(plate) || /[a-zA-Z][a-zA-Z]\-[0-9][0-9][0-9][0-9]/.test(plate) || /[a-zA-Z][a-zA-Z][a-zA-Z]\-[0-9][0-9][0-9]/.test(plate)) {	
+				is_valid=true;
+			}
+			break;
+		default:
+			//console.log('estoy aqui');
+			is_valid=false;
+			break;
+	}
+	return is_valid;
+},
+
+valexptotal:function(placa){
+	return placa.length==7 &&(/[a-zA-Z][0-9][a-zA-Z]\-[0-9][0-9][0-9]/.test(placa) || /[a-zA-Z][a-zA-Z]\-[0-9][0-9][0-9][0-9]/.test(placa) || /[a-zA-Z][a-zA-Z][a-zA-Z]\-[0-9][0-9][0-9]/.test(placa));
+},
+
